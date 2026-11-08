@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Índice - Trocha</title>
+    <link rel="stylesheet" th:href="@{/css/trocha.css}">
+    <style>
+        body { justify-content: flex-start; }
+        .contenedor { width: 100%; max-width: 720px; }
+        .nota { color: #4a4a4a; margin-bottom: 20px; font-size: 0.95em; }
+        .controles { margin-bottom: 20px; }
+        .controles select {
+            padding: 8px; background: transparent; border: none;
+            border-bottom: 2px solid #1a1a1a; font-family: inherit; font-size: 1em; outline: none;
+        }
+        .zona { background: #f4f1e8; border: 3px solid #1a1a1a; padding: 16px 20px; margin-bottom: 16px; }
+        .zona .linea { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+        .zona .nombre { font-weight: bold; }
+        .zona .valor { font-family: 'Noto Serif JP', serif; font-size: 1.3em; }
+        .zona .sub { color: #4a4a4a; font-size: 0.9em; margin: 4px 0 10px; }
+        .medidor { height: 10px; border: 2px solid #1a1a1a; }
+        .medidor-valor { height: 100%; background: #1a1a1a; }
+        .poca { color: #8b1a1a; font-size: 0.85em; margin-top: 8px; }
+        .vacio { text-align: center; padding: 30px; color: #4a4a4a; }
+    </style>
+</head>
+<body>
+    <div class="contenedor">
+        <div class="barra">
+            <a th:href="@{/mapa}">Mapa</a>
+            <span id="sesion"></span>
+        </div>
+        <h1>ÍNDICE POR ZONA</h1>
+        <p class="nota">
+            Porcentaje de criterios de accesibilidad que cumplen los lugares reseñados en cada corregimiento
+            (rampa, baño accesible, pasillos amplios y personal capacitado). Las reseñas aprobadas pesan
+            el doble que las pendientes.
+        </p>
+        <div class="controles">
+            <select id="provincia" onchange="mostrar()">
+                <option value="">Todas las provincias</option>
+            </select>
+        </div>
+        <div id="lista"></div>
+    </div>
+
+    <script th:src="@{/js/sesion.js}"></script>
+    <script>
+        pintarSesion(document.getElementById('sesion'));
+
+        let zonas = [];
+
+        function el(tag, texto, clase) {
+            const e = document.createElement(tag);
+            if (texto !== undefined) e.textContent = texto;
+            if (clase) e.className = clase;
+            return e;
+        }
+
+        function tarjeta(z) {
+            const t = el('div', undefined, 'zona');
+
+            const linea = el('div', undefined, 'linea');
+            linea.append(el('span', z.corregimiento, 'nombre'), el('span', z.indice.toFixed(1) + ' / 100', 'valor'));
+            t.append(linea);
+
+            t.append(el('div',
+                [z.distrito, z.provincia].filter(Boolean).join(' · ') + ' — '
+                + z.lugares + (z.lugares === 1 ? ' lugar' : ' lugares') + ', '
+                + z.resenas + (z.resenas === 1 ? ' reseña' : ' reseñas'), 'sub'));
+
+            const medidor = el('div', undefined, 'medidor');
+            const valor = el('div', undefined, 'medidor-valor');
+            valor.style.width = z.indice + '%';
+            medidor.append(valor);
+            t.append(medidor);
+
+            if (z.resenas < 3) t.append(el('div', 'Pocas reseñas: el valor puede cambiar mucho', 'poca'));
+            return t;
+        }
+
+        function mostrar() {
+            const filtro = document.getElementById('provincia').value;
+            const lista = document.getElementById('lista');
+            lista.replaceChildren();
+
+            const visibles = zonas.filter(z => !filtro || z.provincia === filtro);
+            if (visibles.length === 0) {
+                lista.append(el('p', 'Todavía no hay reseñas suficientes para calcular el índice.', 'vacio'));
+                return;
+            }
+            visibles.forEach(z => lista.append(tarjeta(z)));
+        }
+
+        async function iniciar() {
+            const res = await fetch('/api/indice/corregimientos');
+            zonas = await res.json();
+
+            const select = document.getElementById('provincia');
+            const provincias = [...new Set(zonas.map(z => z.provincia).filter(Boolean))].sort();
+            provincias.forEach(p => {
+                const o = document.createElement('option');
+                o.value = p;
+                o.textContent = p;
+                select.appendChild(o);
+            });
+            mostrar();
+        }
+
+        iniciar();
+    </script>
+</body>
+</html>

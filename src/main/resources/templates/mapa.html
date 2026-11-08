@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mapa - Trocha</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <style>
+        .panel {
+            position: fixed; z-index: 1100;
+            left: 16px; bottom: 16px; width: 340px; max-height: calc(100vh - 110px);
+            display: flex; flex-direction: column;
+            background: #f4f1e8; border: 2px solid #1a1a1a; box-shadow: 4px 4px 0 #1a1a1a;
+        }
+        .panel.oculto { display: none; }
+        .panel-tope {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 14px; border-bottom: 2px solid #1a1a1a;
+        }
+        .panel-tope button {
+            padding: 2px 10px; background: transparent; color: #1a1a1a;
+            border: 2px solid #1a1a1a; cursor: pointer;
+        }
+        #panel-cuerpo { padding: 14px; overflow-y: auto; }
+
+        #panel-cuerpo input, #panel-cuerpo select, #panel-cuerpo textarea {
+            width: 100%; padding: 6px; margin-bottom: 8px; background: transparent;
+            border: none; border-bottom: 2px solid #1a1a1a; font-family: inherit; outline: none;
+        }
+        #panel-cuerpo textarea { resize: vertical; min-height: 40px; }
+        #panel-cuerpo label { display: flex; gap: 8px; align-items: center; }
+        #panel-cuerpo input[type=checkbox] { width: auto; margin: 0; }
+        #panel-cuerpo button {
+            width: 100%; padding: 8px; background: #1a1a1a; color: #f4f1e8;
+            border: 2px solid #1a1a1a; cursor: pointer; letter-spacing: 1px;
+        }
+        #panel-cuerpo button:hover { background: #8b1a1a; border-color: #8b1a1a; }
+        #panel-cuerpo button:disabled { opacity: 0.4; cursor: not-allowed; }
+        .criterios { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin-bottom: 10px; }
+
+        @media (max-width: 600px) {
+            .panel { left: 0; right: 0; bottom: 0; width: auto; max-height: 60vh; border-width: 2px 0 0 0; box-shadow: none; }
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@700&family=Zen+Kaku+Gothic+New&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Zen Kaku Gothic New', sans-serif; background: #f4f1e8; }
+        header {
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #1a1a1a;
+        }
+        header h1 {
+            font-family: 'Noto Serif JP', serif;
+            font-size: 1.8em;
+            letter-spacing: 3px;
+        }
+        header a { color: #8b1a1a; text-decoration: none; font-weight: bold; }
+        #mapa { width: 100%; height: calc(100vh - 70px); }
+        .leaflet-tile-pane { filter: grayscale(0.6) contrast(1.1); }
+
+        .pin span {
+            display: block; width: 100%; height: 100%;
+            background: #1a1a1a; border: 2px solid #f4f1e8;
+            box-shadow: 3px 3px 0 #8b1a1a; transform: rotate(45deg);
+        }
+        .leaflet-popup-content-wrapper {
+            border-radius: 0; background: #f4f1e8;
+            border: 2px solid #1a1a1a; box-shadow: 4px 4px 0 #1a1a1a;
+        }
+        .leaflet-popup-tip { background: #1a1a1a; }
+        .leaflet-popup-content a { color: #8b1a1a; display: block; margin-top: 8px; font-weight: bold; }
+        .leaflet-popup-content input, .leaflet-popup-content select {
+            width: 100%; padding: 6px; margin-bottom: 8px;
+            background: transparent; border: none; border-bottom: 2px solid #1a1a1a;
+            font-family: inherit; outline: none;
+        }
+        .leaflet-popup-content textarea {
+            width: 100%; padding: 6px; margin-bottom: 8px; resize: vertical;
+            background: transparent; border: none; border-bottom: 2px solid #1a1a1a;
+            font-family: inherit; outline: none;
+        }
+        .leaflet-popup-content label { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+        .leaflet-popup-content input[type=checkbox] { width: auto; margin: 0; }
+        .leaflet-popup-content button {
+            width: 100%; padding: 8px; background: #1a1a1a; color: #f4f1e8;
+            border: 2px solid #1a1a1a; cursor: pointer; letter-spacing: 1px;
+        }
+        .leaflet-popup-content button:hover { background: #8b1a1a; border-color: #8b1a1a; }
+        .leaflet-popup-content button:disabled { opacity: 0.4; cursor: not-allowed; }
+        .leaflet-popup-content button:disabled:hover { background: #1a1a1a; border-color: #1a1a1a; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>TROCHA</h1>
+        <div style="display:flex; gap:18px; align-items:center">
+            <span id="sesion" style="display:flex; gap:12px; align-items:center"></span>
+            <a th:href="@{/}">Inicio</a>
+        </div>
+    </header>
+    <div id="mapa"></div>
+
+    <div id="panel" class="panel oculto">
+        <div class="panel-tope">
+            <b>Nuevo lugar</b>
+            <button id="panel-cerrar" type="button">✕</button>
+        </div>
+        <div id="panel-cuerpo"></div>
+    </div>
+
+    <script th:src="@{/js/sesion.js}"></script>
+    <script>
+        pintarSesion(document.getElementById('sesion'));
+
+        const CATEGORIAS = [
+            { valor: 'restaurante', texto: 'Restaurante' },
+            { valor: 'banco', texto: 'Banco' },
+            { valor: 'salud', texto: 'Salud' },
+            { valor: 'transporte', texto: 'Transporte' },
+            { valor: 'comercio', texto: 'Comercio' },
+            { valor: 'educacion', texto: 'Educación' },
+            { valor: 'gasolinera', texto: 'Gasolinera' },
+            { valor: 'otro', texto: 'Otro' }
+        ];
+
+        const PASILLOS = [
+            { valor: 'adecuado', texto: 'Pasillos amplios' },
+            { valor: 'estrecho', texto: 'Pasillos estrechos' },
+            { valor: 'no_aplica', texto: 'Pasillos: no aplica' }
+        ];
+
+        const mapa = L.map('mapa', {
+            maxBounds: L.latLngBounds(L.latLng(6.8, -83.5), L.latLng(10.0, -76.8)),
+            minZoom: 7
+        }).setView([8.98, -79.52], 13);
+
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri',
+            maxZoom: 16
+        }).addTo(mapa);
+
+        const pin = L.divIcon({
+            className: 'pin',
+            html: '<span></span>',
+            iconSize: [18, 18],
+            iconAnchor: [9, 9],
+            popupAnchor: [0, -10]
+        });
+
+        function opcion(valor, texto) {
+            const o = document.createElement('option');
+            o.value = valor;
+            o.textContent = texto;
+            return o;
+        }
+
+        function casilla(texto) {
+            const etiqueta = document.createElement('label');
+            const caja = document.createElement('input');
+            caja.type = 'checkbox';
+            etiqueta.append(caja, texto);
+            return { etiqueta, caja };
+        }
+
+        let temporal = null;
+
+        const panel = document.getElementById('panel');
+        const panelCuerpo = document.getElementById('panel-cuerpo');
+
+        function despejar(latlng) {
+            const caja = mapa.getContainer().getBoundingClientRect();
+            const r = panel.getBoundingClientRect();
+            const p = mapa.latLngToContainerPoint(latlng);
+            const px = p.x + caja.left;
+            const py = p.y + caja.top;
+            const margen = 30;
+            const tapado = px > r.left - margen && px < r.right + margen && py > r.top - margen;
+            if (!tapado) return;
+
+            if (window.innerWidth <= 600) {
+                const libre = r.top - caja.top;
+                mapa.panBy([0, p.y - libre / 2]);
+            } else {
+                const libreX = (r.right + margen + caja.right) / 2 - caja.left;
+                mapa.panBy([p.x - libreX, 0]);
+            }
+        }
+
+        function abrirPanel(contenido, latlng) {
+            panelCuerpo.replaceChildren(contenido);
+            panel.classList.remove('oculto');
+            despejar(latlng);
+        }
+
+        function cerrarPanel() {
+            panel.classList.add('oculto');
+            panelCuerpo.replaceChildren();
+            if (temporal) { mapa.removeLayer(temporal); temporal = null; }
+        }
+
+        document.getElementById('panel-cerrar').onclick = cerrarPanel;
+
+        mapa.on('click', async e => {
+            if (!leerSesion()) { window.location.href = '/login'; return; }
+            const token = localStorage.getItem('token');
+            if (temporal) mapa.removeLayer(temporal);
+
+            const form = document.createElement('div');
+
+            const zona = document.createElement('div');
+            zona.textContent = 'Ubicando...';
+            zona.style.fontWeight = 'bold';
+            zona.style.marginBottom = '8px';
+
+            const nombre = document.createElement('input');
+            nombre.placeholder = 'Nombre del lugar';
+            nombre.maxLength = 120;
+
+            const categoria = document.createElement('select');
+            CATEGORIAS.forEach(c => categoria.appendChild(opcion(c.valor, c.texto)));
+
+            const detalle = document.createElement('input');
+            detalle.placeholder = '¿Qué tipo de lugar es?';
+            detalle.maxLength = 60;
+            detalle.style.display = 'none';
+            categoria.onchange = () => {
+                detalle.style.display = categoria.value === 'otro' ? 'block' : 'none';
+            };
+
+            const puntuacion = document.createElement('select');
+            puntuacion.appendChild(opcion('', 'Tu puntuación'));
+            for (let i = 1; i <= 10; i++) puntuacion.appendChild(opcion(i, i + ' de 10'));
+
+            const rampa = casilla('Tiene rampa');
+            const bano = casilla('Baño accesible');
+            const personal = casilla('Personal capacitado');
+
+            const pasillos = document.createElement('select');
+            PASILLOS.forEach(p => pasillos.appendChild(opcion(p.valor, p.texto)));
+
+            const comentario = document.createElement('textarea');
+            comentario.rows = 2;
+            comentario.maxLength = 1000;
+            comentario.placeholder = 'Comentario (opcional)';
+
+            const guardar = document.createElement('button');
+            guardar.textContent = 'PUBLICAR';
+            guardar.disabled = true;
+
+            const msg = document.createElement('div');
+
+            const criterios = document.createElement('div');
+            criterios.className = 'criterios';
+            criterios.append(rampa.etiqueta, bano.etiqueta, personal.etiqueta);
+
+            form.append(zona, nombre, categoria, detalle, puntuacion,
+                criterios, pasillos, comentario, guardar, msg);
+
+            guardar.onclick = async () => {
+                msg.textContent = '';
+                if (!nombre.value.trim()) { msg.textContent = 'Falta el nombre'; return; }
+                if (categoria.value === 'otro' && !detalle.value.trim()) {
+                    msg.textContent = 'Especifica qué tipo de lugar es';
+                    return;
+                }
+                if (!puntuacion.value) { msg.textContent = 'Elige una puntuación'; return; }
+
+                guardar.disabled = true;
+                const cabeceras = {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                };
+
+                const resLugar = await fetch('/api/lugares', {
+                    method: 'POST',
+                    headers: cabeceras,
+                    body: JSON.stringify({
+                        nombre: nombre.value.trim(),
+                        categoria: categoria.value,
+                        detalleCategoria: categoria.value === 'otro' ? detalle.value.trim() : null,
+                        latitud: e.latlng.lat,
+                        longitud: e.latlng.lng
+                    })
+                });
+                if (resLugar.status === 401) { cerrarSesion(); return; }
+                if (!resLugar.ok) {
+                    msg.textContent = await resLugar.text();
+                    guardar.disabled = false;
+                    return;
+                }
+                const lugar = await resLugar.json();
+
+                const resResena = await fetch('/api/reportes', {
+                    method: 'POST',
+                    headers: cabeceras,
+                    body: JSON.stringify({
+                        lugarId: lugar.id,
+                        puntuacion: Number(puntuacion.value),
+                        tieneRampa: rampa.caja.checked,
+                        tieneBanoAccesible: bano.caja.checked,
+                        personalCapacitado: personal.caja.checked,
+                        anchoPasillos: pasillos.value,
+                        comentario: comentario.value.trim() || null
+                    })
+                });
+                if (resResena.status === 401) { cerrarSesion(); return; }
+                if (!resResena.ok) {
+                    // el lugar ya existe: se termina la reseña en su pantalla
+                    window.location.href = '/reportar?lugar=' + lugar.id;
+                    return;
+                }
+                window.location.href = '/lugar?id=' + lugar.id;
+            };
+
+            temporal = L.marker(e.latlng, { icon: pin }).addTo(mapa);
+            abrirPanel(form, e.latlng);
+
+            try {
+                const r = await fetch('/api/geo/ubicar?lat=' + e.latlng.lat + '&lon=' + e.latlng.lng);
+                if (r.ok) {
+                    const u = await r.json();
+                    zona.textContent = [u.corregimiento, u.distrito, u.provincia].filter(Boolean).join(' · ');
+                    guardar.disabled = false;
+                } else if (r.status === 404) {
+                    zona.textContent = 'Esta ubicación está fuera de Panamá';
+                } else {
+                    zona.textContent = 'No se pudo verificar la ubicación';
+                }
+            } catch (err) {
+                zona.textContent = 'No se pudo verificar la ubicación';
+            }
+        });
+
+        fetch('/api/lugares')
+            .then(res => res.json())
+            .then(lugares => {
+                lugares.forEach(lugar => {
+                    const cont = document.createElement('div');
+                    const nombre = document.createElement('b');
+                    nombre.textContent = lugar.nombre;
+                    const tipo = document.createElement('div');
+                    tipo.textContent = (lugar.categoria === 'otro' && lugar.detalleCategoria)
+                        ? lugar.detalleCategoria
+                        : lugar.categoria;
+
+                    const detalle = document.createElement('a');
+                    detalle.href = '/lugar?id=' + lugar.id;
+                    detalle.textContent = 'Ver reseñas';
+
+                    const enlace = document.createElement('a');
+                    enlace.href = '/reportar?lugar=' + lugar.id;
+                    enlace.textContent = 'Escribir una reseña';
+
+                    cont.append(nombre, tipo, detalle, enlace);
+
+                    L.marker([lugar.latitud, lugar.longitud], { icon: pin })
+                        .addTo(mapa)
+                        .bindPopup(cont);
+                });
+            })
+            .catch(err => console.error('Error cargando lugares:', err));
+    </script>
+</body>
+</html>

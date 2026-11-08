@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Administración - Trocha</title>
+    <link rel="stylesheet" th:href="@{/css/trocha.css}">
+    <style>
+        body { justify-content: flex-start; }
+        .contenedor { width: 100%; max-width: 720px; }
+        .controles { display: flex; gap: 14px; align-items: center; margin-bottom: 24px; flex-wrap: wrap; }
+        .controles select {
+            padding: 8px; background: transparent; border: none;
+            border-bottom: 2px solid #1a1a1a; font-family: inherit; font-size: 1em; outline: none;
+        }
+        .reporte {
+            background: #f4f1e8; border: 3px solid #1a1a1a;
+            padding: 22px; margin-bottom: 22px; box-shadow: 6px 6px 0 #1a1a1a;
+        }
+        .reporte .tope { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+        .reporte .tope a { color: #8b1a1a; font-weight: bold; text-decoration: none; }
+        .dato { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #b9b4a4; }
+        .comentario { margin: 14px 0; font-style: italic; }
+        .acciones { display: flex; gap: 12px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+        .acciones button {
+            font-family: inherit; padding: 8px 18px; background: transparent;
+            border: 2px solid #1a1a1a; cursor: pointer; letter-spacing: 1px;
+        }
+        .acciones button:hover { background: #1a1a1a; color: #f4f1e8; }
+        .acciones .no:hover { background: #8b1a1a; border-color: #8b1a1a; }
+        .acciones .conteo { margin-left: auto; font-size: 0.9em; color: #4a4a4a; }
+        .vacio { text-align: center; padding: 30px; color: #4a4a4a; }
+    </style>
+</head>
+<body>
+    <div class="contenedor">
+        <div class="barra">
+            <a th:href="@{/mapa}">Mapa</a>
+            <span id="sesion"></span>
+        </div>
+        <h1>ADMINISTRACIÓN</h1>
+        <div class="controles">
+            <select id="filtro" onchange="cargar()">
+                <option value="pendiente">Pendientes</option>
+                <option value="aprobado">Aprobadas</option>
+                <option value="todas">Todas</option>
+            </select>
+            <span id="total"></span>
+        </div>
+        <div id="lista"></div>
+    </div>
+
+    <script th:src="@{/js/sesion.js}"></script>
+    <script>
+        pintarSesion(document.getElementById('sesion'));
+
+        const token = localStorage.getItem('token');
+        const nombresLugar = {};
+
+        function el(tag, texto, clase) {
+            const e = document.createElement(tag);
+            if (texto !== undefined) e.textContent = texto;
+            if (clase) e.className = clase;
+            return e;
+        }
+        
+        function si(valor) { return valor === true ? 'Sí' : valor === false ? 'No' : '—'; }
+
+        function pasillos(valor) {
+            return { adecuado: 'Amplios', estrecho: 'Estrechos', no_aplica: 'No aplica' }[valor] || '—';
+        }
+
+        function fila(etiqueta, valor) {
+            const f = el('div', undefined, 'dato');
+            f.append(el('span', etiqueta), el('b', valor));
+            return f;
+        }
+
+        async function cambiar(id, estado, mensaje) {
+            mensaje.textContent = '';
+            const res = await fetch('/api/reportes/' + id + '/estado?estado=' + estado, {
+                method: 'PATCH',
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            if (res.ok) cargar();
+            else if (res.status === 401) cerrarSesion();
+            else if (res.status === 403) mensaje.textContent = 'No tienes permiso de administrador';
+            else mensaje.textContent = await res.text();
+        }
+
+        function tarjeta(r) {
+            const t = el('div', undefined, 'reporte');
+
+            const tope = el('div', undefined, 'tope');
+            const enlace = el('a', nombresLugar[r.lugarId] || ('Lugar ' + r.lugarId));
+            enlace.href = '/lugar?id=' + r.lugarId;
+            tope.append(enlace, el('span', (r.puntuacion ? r.puntuacion + ' / 10 · ' : '') + r.estado.toUpperCase()));
+            t.append(tope);
+
+            t.append(
+                el('div', 'Reseña de ' + r.autor),
+                fila('Rampa', si(r.tieneRampa)),
+                fila('Baño accesible', si(r.tieneBanoAccesible)),
+                fila('Pasillos', pasillos(r.anchoPasillos)),
+                fila('Personal capacitado', si(r.personalCapacitado))
+            );
+            if (r.comentario) t.append(el('p', '«' + r.comentario + '»', 'comentario'));
+
+            const mensaje = el('div', undefined, 'mensaje');
+            const acciones = el('div', undefined, 'acciones');
+            const aprobar = el('button', 'APROBAR');
+            const rechazar = el('button', 'RECHAZAR', 'no');
+            aprobar.onclick = () => cambiar(r.id, 'aprobado', mensaje);
+            rechazar.onclick = () => cambiar(r.id, 'rechazado', mensaje);
+            acciones.append(aprobar, rechazar,
+                el('span', r.confirmaciones + ' confirman · ' + r.desmentidos + ' desmienten', 'conteo'));
+            t.append(acciones, mensaje);
+            return t;
+        }
+
+        async function cargar() {
+            const filtro = document.getElementById('filtro').value;
+            const lista = document.getElementById('lista');
+            const res = await fetch('/api/reportes');
+            let reportes = await res.json();
+            if (filtro !== 'todas') reportes = reportes.filter(r => r.estado === filtro);
+
+            lista.replaceChildren();
+            document.getElementById('total').textContent =
+                reportes.length + (reportes.length === 1 ? ' reseña' : ' reseñas');
+
+            if (reportes.length === 0) {
+                lista.append(el('p', 'No hay reseñas en esta vista.', 'vacio'));
+                return;
+            }
+            reportes.sort((a, b) => b.id - a.id).forEach(r => lista.append(tarjeta(r)));
+        }
+
+        async function iniciar() {
+            if (!leerSesion()) { window.location.href = '/login'; return; }
+
+            const yo = await fetch('/api/yo', { headers: { 'Authorization': 'Bearer ' + token } });
+            if (yo.status === 401) { cerrarSesion(); return; }
+            const datos = await yo.json();
+            if (String(datos.rol).toLowerCase() !== 'admin') {
+                document.getElementById('lista').append(
+                    el('p', 'Esta pantalla es solo para administradores.', 'vacio'));
+                return;
+            }
+
+            const lugares = await (await fetch('/api/lugares')).json();
+            lugares.forEach(l => { nombresLugar[l.id] = l.nombre; });
+            cargar();
+        }
+
+        iniciar();
+    </script>
+</body>
+</html>

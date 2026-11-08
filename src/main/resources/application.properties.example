@@ -1,0 +1,10 @@
+spring.application.name=trocha
+
+spring.datasource.url=jdbc:postgresql://localhost:5432/TROCHA_DB
+spring.datasource.username=postgres
+spring.datasource.password=CLAVE_PERSONAL_BD
+jwt.secret=CAMBIA_ESTO_POR_UNA_CLAVE_ALEATORIA_DE_48_CARACTERES_O_MAS
+
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=false
+server.port=8080

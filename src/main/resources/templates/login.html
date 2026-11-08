@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Entrar - Trocha</title>
+    <link rel="stylesheet" th:href="@{/css/trocha.css}">
+</head>
+<body>
+    <div class="sello">道</div>
+    <h1>TROCHA</h1>
+    <div class="tarjeta">
+        <input type="text" id="username" placeholder="Usuario">
+        <input type="password" id="password" placeholder="Contraseña">
+        <button class="boton" onclick="entrar()">ENTRAR</button>
+        <p class="mensaje" id="mensaje"></p>
+        <p class="enlace">¿No tienes cuenta? <a th:href="@{/registro}">Regístrate</a></p>
+    </div>
+
+    <script>
+        document.addEventListener('keydown', e => { if (e.key === 'Enter') entrar(); });
+
+        async function entrar() {
+            const mensaje = document.getElementById('mensaje');
+            mensaje.textContent = '';
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: document.getElementById('username').value,
+                    password: document.getElementById('password').value
+                })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                localStorage.setItem('token', data.token);
+                window.location.href = '/mapa';
+            } else if (res.status === 401) {
+                mensaje.textContent = 'Usuario o contraseña incorrectos';
+            } else {
+                mensaje.textContent = 'Error del servidor (' + res.status + ')';
+            }
+        }
+    </script>
+</body>
+</html>

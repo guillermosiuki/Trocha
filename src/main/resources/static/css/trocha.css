@@ -1,0 +1,115 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Zen+Kaku+Gothic+New&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    background-color: #f4f1e8;
+    background-image: radial-gradient(#d8d3c4 0.5px, transparent 0.5px);
+    background-size: 12px 12px;
+    color: #1a1a1a;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+}
+
+h1 {
+    font-family: 'Noto Serif JP', serif;
+    letter-spacing: 6px;
+    font-size: 2.6em;
+    margin-bottom: 30px;
+}
+
+.tarjeta {
+    background: #f4f1e8;
+    border: 3px solid #1a1a1a;
+    padding: 40px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 8px 8px 0 #1a1a1a;
+}
+
+.tarjeta input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 18px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid #1a1a1a;
+    font-family: inherit;
+    font-size: 1em;
+    outline: none;
+}
+
+.tarjeta input:focus { border-bottom-color: #8b1a1a; }
+
+.boton {
+    width: 100%;
+    font-family: 'Noto Serif JP', serif;
+    font-size: 1.1em;
+    letter-spacing: 2px;
+    color: #f4f1e8;
+    background: #1a1a1a;
+    padding: 14px;
+    border: 2px solid #1a1a1a;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.boton:hover { background: #8b1a1a; border-color: #8b1a1a; }
+
+.mensaje { margin-top: 16px; color: #8b1a1a; min-height: 1.2em; }
+
+.enlace { margin-top: 20px; font-size: 0.95em; }
+.enlace a { color: #8b1a1a; }
+
+/* Sello rojo (hanko). 道 significa "camino" */
+.sello {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 54px;
+    height: 54px;
+    background: #8b1a1a;
+    color: #f4f1e8;
+    font-family: 'Noto Serif JP', serif;
+    font-size: 1.9em;
+    transform: rotate(-6deg);
+    clip-path: polygon(2% 4%, 96% 0%, 100% 94%, 4% 100%);
+    margin-bottom: 18px;
+}
+
+/* Trazo de pincel irregular bajo los títulos */
+h1::after {
+    content: "";
+    display: block;
+    width: 120px;
+    height: 5px;
+    background: #1a1a1a;
+    margin: 14px auto 0;
+    clip-path: polygon(0% 40%, 15% 0%, 40% 60%, 60% 10%, 85% 70%, 100% 30%, 100% 100%, 0% 100%);
+}
+
+/* Borde de panel de manga: esquinas ligeramente desiguales */
+.tarjeta {
+    clip-path: polygon(0 1%, 99% 0, 100% 99%, 1% 100%);
+}
+
+/* Salpicadura de tinta tenue en el fondo */
+body::before {
+    content: "";
+    position: fixed;
+    top: -120px;
+    right: -120px;
+    width: 380px;
+    height: 380px;
+    background: radial-gradient(circle, rgba(26,26,26,0.14) 0%, transparent 65%);
+    pointer-events: none;
+}
+
+.barra { width: 100%; max-width: 720px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.barra a { color: #8b1a1a; text-decoration: none; font-weight: bold; }
+.barra #sesion { display: flex; gap: 12px; align-items: center; }

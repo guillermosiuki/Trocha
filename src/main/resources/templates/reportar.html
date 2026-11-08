@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Reseña - Trocha</title>
+    <link rel="stylesheet" th:href="@{/css/trocha.css}">
+    <style>
+        .tarjeta { max-width: 480px; }
+        .tarjeta select, .tarjeta textarea {
+            width: 100%; padding: 12px; margin-bottom: 18px;
+            background: transparent; border: none; border-bottom: 2px solid #1a1a1a;
+            font-family: inherit; font-size: 1em; outline: none;
+        }
+        .tarjeta .opcion { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+        .tarjeta .opcion input { width: auto; margin: 0; }
+    </style>
+</head>
+<body>
+    <div class="barra">
+        <a th:href="@{/mapa}">Mapa</a>
+        <span id="sesion"></span>
+    </div>
+    <div class="sello">道</div>
+    <h1>RESEÑA</h1>
+    <div class="tarjeta">
+        <select id="lugar"><option value="">¿Qué lugar?</option></select>
+        <select id="puntuacion"><option value="">Tu puntuación</option></select>
+
+        <label class="opcion"><input type="checkbox" id="rampa"> Tiene rampa</label>
+        <label class="opcion"><input type="checkbox" id="bano"> Baño accesible</label>
+        <label class="opcion"><input type="checkbox" id="personal"> Personal capacitado</label>
+
+        <select id="pasillos">
+            <option value="adecuado">Pasillos amplios</option>
+            <option value="estrecho">Pasillos estrechos</option>
+            <option value="no_aplica">No aplica</option>
+        </select>
+
+        <textarea id="comentario" rows="4" maxlength="1000" placeholder="Comentario (opcional)"></textarea>
+
+        <button class="boton" onclick="enviar()">ENVIAR RESEÑA</button>
+        <p class="mensaje" id="mensaje"></p>
+    </div>
+
+    <script th:src="@{/js/sesion.js}"></script>
+    <script>
+        pintarSesion(document.getElementById('sesion'));
+        if (!leerSesion()) window.location.href = '/login';
+
+        const params = new URLSearchParams(window.location.search);
+
+        const pun = document.getElementById('puntuacion');
+        for (let i = 1; i <= 10; i++) {
+            const o = document.createElement('option');
+            o.value = i;
+            o.textContent = i + ' de 10';
+            pun.appendChild(o);
+        }
+
+        fetch('/api/lugares')
+            .then(r => r.json())
+            .then(lugares => {
+                const sel = document.getElementById('lugar');
+                lugares.forEach(l => {
+                    const o = document.createElement('option');
+                    o.value = l.id;
+                    o.textContent = l.nombre;
+                    sel.appendChild(o);
+                });
+                if (params.get('lugar')) sel.value = params.get('lugar');
+            });
+
+        async function enviar() {
+            const mensaje = document.getElementById('mensaje');
+            mensaje.textContent = '';
+            const lugarId = document.getElementById('lugar').value;
+            if (!lugarId) { mensaje.textContent = 'Elige un lugar'; return; }
+            if (!pun.value) { mensaje.textContent = 'Elige una puntuación'; return; }
+
+            const res = await fetch('/api/reportes', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + localStorage.getItem('token')
+                },
+                body: JSON.stringify({
+                    lugarId: Number(lugarId),
+                    puntuacion: Number(pun.value),
+                    tieneRampa: document.getElementById('rampa').checked,
+                    tieneBanoAccesible: document.getElementById('bano').checked,
+                    personalCapacitado: document.getElementById('personal').checked,
+                    anchoPasillos: document.getElementById('pasillos').value,
+                    comentario: document.getElementById('comentario').value || null
+                })
+            });
+
+            if (res.ok) {
+                window.location.href = '/lugar?id=' + lugarId;
+            } else if (res.status === 401) {
+                cerrarSesion();
+            } else {
+                mensaje.textContent = await res.text();
+            }
+        }
+    </script>
+</body>
+</html>

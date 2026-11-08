@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Lugar - Trocha</title>
+    <link rel="stylesheet" th:href="@{/css/trocha.css}">
+    <style>
+        body { justify-content: flex-start; }
+        .contenedor { width: 100%; max-width: 720px; }
+        .cabecera { margin-bottom: 24px; }
+        .cabecera h1 { font-size: 2em; margin-bottom: 6px; }
+        .cabecera .sub { color: #4a4a4a; margin-bottom: 8px; }
+        .cabecera .resumen { font-weight: bold; margin-bottom: 16px; }
+        .accion { display: inline-block; width: auto; padding: 10px 24px; text-decoration: none; }
+
+        .reporte {
+            background: #f4f1e8; border: 3px solid #1a1a1a;
+            padding: 22px; margin-bottom: 22px; box-shadow: 6px 6px 0 #1a1a1a;
+        }
+        .reporte .tope { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 10px; }
+        .estado {
+            font-family: 'Noto Serif JP', serif; font-size: 0.85em; letter-spacing: 2px;
+            padding: 3px 10px; border: 2px solid #1a1a1a;
+        }
+        .estado.aprobado { background: #1a1a1a; color: #f4f1e8; }
+        .estado.pendiente { color: #8b1a1a; border-color: #8b1a1a; }
+        .dato { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #b9b4a4; }
+        .comentario { margin: 14px 0; font-style: italic; }
+        .votos { display: flex; gap: 12px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
+        .voto {
+            font-family: inherit; padding: 8px 16px; background: transparent;
+            border: 2px solid #1a1a1a; cursor: pointer; letter-spacing: 1px;
+        }
+        .voto:hover { background: #1a1a1a; color: #f4f1e8; }
+        .voto.no:hover { background: #8b1a1a; border-color: #8b1a1a; }
+        .conteo { margin-left: auto; font-size: 0.9em; color: #4a4a4a; }
+        .vacio { text-align: center; padding: 30px; color: #4a4a4a; }
+    </style>
+</head>
+<body>
+    <div class="contenedor">
+        <div class="barra">
+            <a th:href="@{/mapa}">Mapa</a>
+            <span id="sesion"></span>
+        </div>
+        <div class="cabecera">
+            <h1 id="nombre">...</h1>
+            <p class="sub" id="sub"></p>
+            <p class="resumen" id="resumen"></p>
+            <a class="boton accion" id="reportar" href="#">ESCRIBIR UNA RESEÑA</a>
+        </div>
+        <div id="reportes"></div>
+    </div>
+
+    <script th:src="@{/js/sesion.js}"></script>
+    <script>
+        pintarSesion(document.getElementById('sesion'));
+
+        const id = new URLSearchParams(window.location.search).get('id');
+
+        function el(tag, texto, clase) {
+            const e = document.createElement(tag);
+            if (texto !== undefined) e.textContent = texto;
+            if (clase) e.className = clase;
+            return e;
+        }
+
+        function si(valor) { return valor === true ? 'Sí' : valor === false ? 'No' : '—'; }
+
+        function pasillos(valor) {
+            return { adecuado: 'Amplios', estrecho: 'Estrechos', no_aplica: 'No aplica' }[valor] || '—';
+        }
+
+        function fila(etiqueta, valor) {
+            const f = el('div', undefined, 'dato');
+            f.append(el('span', etiqueta), el('b', valor));
+            return f;
+        }
+
+        function fecha(v) {
+            if (!v) return '';
+            const d = Array.isArray(v) ? new Date(v[0], v[1] - 1, v[2]) : new Date(v);
+            return isNaN(d) ? '' : d.toLocaleDateString('es-PA');
+        }
+
+        async function votar(reporteId, tipo, mensaje) {
+            if (!leerSesion()) { window.location.href = '/login'; return; }
+            const res = await fetch('/api/calificaciones', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + localStorage.getItem('token')
+                },
+                body: JSON.stringify({ reporteId, tipo })
+            });
+            if (res.ok) cargarReportes();
+            else if (res.status === 401) cerrarSesion();
+            else mensaje.textContent = await res.text();
+        }
+
+        function tarjeta(r) {
+            const t = el('div', undefined, 'reporte');
+
+            const tope = el('div', undefined, 'tope');
+            const izq = el('span', 'Reseña de ' + r.autor + (r.fechaHora ? ' · ' + fecha(r.fechaHora) : ''));
+            const der = el('span');
+            if (r.puntuacion) der.append(el('span', r.puntuacion + ' / 10', 'estado'), ' ');
+            der.append(el('span', r.estado.toUpperCase(), 'estado ' + r.estado));
+            tope.append(izq, der);
+            t.append(tope);
+
+            t.append(
+                fila('Rampa', si(r.tieneRampa)),
+                fila('Baño accesible', si(r.tieneBanoAccesible)),
+                fila('Pasillos', pasillos(r.anchoPasillos)),
+                fila('Personal capacitado', si(r.personalCapacitado))
+            );
+            if (r.comentario) t.append(el('p', '«' + r.comentario + '»', 'comentario'));
+
+            const mensaje = el('div', undefined, 'mensaje');
+            const votos = el('div', undefined, 'votos');
+            const confirma = el('button', 'CONFIRMO', 'voto');
+            const desmiente = el('button', 'NO ES ASÍ', 'voto no');
+            confirma.onclick = () => votar(r.id, 'confirma', mensaje);
+            desmiente.onclick = () => votar(r.id, 'desmiente', mensaje);
+            votos.append(confirma, desmiente, el('span', r.confirmaciones + ' confirman · ' + r.desmentidos + ' desmienten', 'conteo'));
+            t.append(votos, mensaje);
+            return t;
+        }
+
+        async function cargarReportes() {
+            const res = await fetch('/api/reportes/lugar/' + id);
+            const cont = document.getElementById('reportes');
+            const resumen = document.getElementById('resumen');
+            cont.replaceChildren();
+            const reportes = await res.json();
+
+            const conNota = reportes.filter(r => r.puntuacion);
+            if (conNota.length > 0) {
+                const prom = conNota.reduce((s, r) => s + r.puntuacion, 0) / conNota.length;
+                resumen.textContent = prom.toFixed(1) + ' / 10 · ' + conNota.length
+                    + (conNota.length === 1 ? ' reseña' : ' reseñas');
+            } else {
+                resumen.textContent = 'Sin puntuaciones todavía';
+            }
+
+            if (reportes.length === 0) {
+                cont.append(el('p', 'Todavía nadie ha reseñado este lugar. Sé la primera persona.', 'vacio'));
+                return;
+            }
+            reportes.sort((a, b) => b.id - a.id).forEach(r => cont.append(tarjeta(r)));
+        }
+
+        async function cargarLugar() {
+            const res = await fetch('/api/lugares/' + id);
+            if (!res.ok) {
+                document.getElementById('nombre').textContent = 'Lugar no encontrado';
+                return;
+            }
+            const l = await res.json();
+            const tipo = (l.categoria === 'otro' && l.detalleCategoria) ? l.detalleCategoria : l.categoria;
+            document.getElementById('nombre').textContent = l.nombre;
+            document.getElementById('sub').textContent = [tipo, l.corregimiento, l.provincia].filter(Boolean).join(' · ');
+            document.getElementById('reportar').href = '/reportar?lugar=' + l.id;
+            document.title = l.nombre + ' - Trocha';
+            cargarReportes();
+        }
+
+        cargarLugar();
+    </script>
+</body>
+</html>

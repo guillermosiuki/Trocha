@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Registro - Trocha</title>
+    <link rel="stylesheet" th:href="@{/css/trocha.css}">
+</head>
+<body>
+    <div class="sello">道</div>
+    <h1>TROCHA</h1>
+    <div class="tarjeta">
+        <input type="text" id="nombre" placeholder="Nombre">
+        <input type="text" id="username" placeholder="Usuario">
+        <input type="email" id="email" placeholder="Correo (opcional)">
+        <input type="password" id="password" placeholder="Contraseña">
+        <button class="boton" onclick="registrar()">CREAR CUENTA</button>
+        <p class="mensaje" id="mensaje"></p>
+        <p class="enlace">¿Ya tienes cuenta? <a th:href="@{/login}">Entra</a></p>
+    </div>
+
+    <script>
+        document.addEventListener('keydown', e => { if (e.key === 'Enter') registrar(); });
+
+        async function registrar() {
+            const mensaje = document.getElementById('mensaje');
+            mensaje.textContent = '';
+            const res = await fetch('/api/auth/registro', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    nombre: document.getElementById('nombre').value,
+                    username: document.getElementById('username').value,
+                    email: document.getElementById('email').value || null,
+                    password: document.getElementById('password').value
+                })
+            });
+            if (res.ok) {
+                window.location.href = '/login';
+            } else {
+                mensaje.textContent = await res.text();
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Trocha</title>
+    <link rel="stylesheet" th:href="@{/css/trocha.css}">
+    <style>
+        .menu { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 320px; }
+        .menu .boton { display: block; text-align: center; text-decoration: none; }
+        .menu .boton.claro { background: transparent; color: #1a1a1a; }
+        .menu .boton.claro:hover { background: #8b1a1a; color: #f4f1e8; }
+        .subtitulo { color: #4a4a4a; margin: 8px 0 36px; letter-spacing: 1px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="sello">道</div>
+    <h1>TROCHA</h1>
+    <p class="subtitulo">Mapeo colaborativo de accesibilidad en Panamá</p>
+    <div class="menu">
+        <a class="boton" th:href="@{/login}">INICIAR SESIÓN</a>
+        <a class="boton claro" th:href="@{/registro}">REGISTRARSE</a>
+        <a class="boton claro" th:href="@{/mapa}">VER EL MAPA</a>
+        <a class="boton claro" th:href="@{/indice}">ÍNDICE POR ZONA</a>
+    </div>
+</body>
+</html>
